@@ -772,6 +772,20 @@ lapacke_mangling.h
 
 /mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/plugins/MatrixCwiseUnaryOps.h
 
+/mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/datavariables.cpp
+iostream
+-
+math.h
+-
+map
+-
+datavariables.h
+/mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/datavariables.h
+
+/mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/datavariables.h
+vector
+-
+
 /mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/json.hpp
 algorithm
 -
@@ -849,4 +863,18 @@ Eigen-3.3/Eigen/QR
 /mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/QR
 json.hpp
 /mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/json.hpp
+spline.h
+/mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/spline.h
+datavariables.h
+/mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/datavariables.h
+
+/mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/spline.h
+cstdio
+-
+cassert
+-
+vector
+-
+algorithm
+-
 

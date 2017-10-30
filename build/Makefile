@@ -123,6 +123,33 @@ path_planning/fast:
 	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/build
 .PHONY : path_planning/fast
 
+src/datavariables.o: src/datavariables.cpp.o
+
+.PHONY : src/datavariables.o
+
+# target to build an object file
+src/datavariables.cpp.o:
+	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/src/datavariables.cpp.o
+.PHONY : src/datavariables.cpp.o
+
+src/datavariables.i: src/datavariables.cpp.i
+
+.PHONY : src/datavariables.i
+
+# target to preprocess a source file
+src/datavariables.cpp.i:
+	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/src/datavariables.cpp.i
+.PHONY : src/datavariables.cpp.i
+
+src/datavariables.s: src/datavariables.cpp.s
+
+.PHONY : src/datavariables.s
+
+# target to generate assembly for a file
+src/datavariables.cpp.s:
+	$(MAKE) -f CMakeFiles/path_planning.dir/build.make CMakeFiles/path_planning.dir/src/datavariables.cpp.s
+.PHONY : src/datavariables.cpp.s
+
 src/main.o: src/main.cpp.o
 
 .PHONY : src/main.o
@@ -159,6 +186,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... path_planning"
+	@echo "... src/datavariables.o"
+	@echo "... src/datavariables.i"
+	@echo "... src/datavariables.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

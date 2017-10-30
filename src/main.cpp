@@ -8,6 +8,8 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
+#include "datavariables.h"
 
 using namespace std;
 
@@ -148,6 +150,7 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 	double seg_s = (s-maps_s[prev_wp]);
 
 	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
+
 	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
 
 	double perp_heading = heading-pi()/2;
@@ -194,9 +197,12 @@ int main() {
   	map_waypoints_s.push_back(s);
   	map_waypoints_dx.push_back(d_x);
   	map_waypoints_dy.push_back(d_y);
-  }
+}
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+// Declare the data class instance to maintain different vehicle variables/states
+DataVariables vehicle_data;
+
+  h.onMessage([&vehicle_data, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -209,24 +215,24 @@ int main() {
 
       if (s != "") {
         auto j = json::parse(s);
-        
+
         string event = j[0].get<string>();
-        
+
         if (event == "telemetry") {
           // j[1] is the data JSON object
-          
+
         	// Main car's localization Data
-          	double car_x = j[1]["x"];
-          	double car_y = j[1]["y"];
-          	double car_s = j[1]["s"];
-          	double car_d = j[1]["d"];
-          	double car_yaw = j[1]["yaw"];
-          	double car_speed = j[1]["speed"];
+          	double car_x = j[1]["x"]; // current vehicle location (global xy)
+          	double car_y = j[1]["y"]; // current vehicle location (global xy)
+          	double car_s = j[1]["s"]; // current vehicle location (freenet)
+          	double car_d = j[1]["d"]; // current vehicle location (freenet)
+          	double car_yaw = j[1]["yaw"]; // current vehicle heading
+          	double car_speed = j[1]["speed"]; // vehicle speed
 
           	// Previous path data given to the Planner
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
-          	// Previous path's end s and d values 
+          	// Previous path's end s and d values
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
@@ -235,19 +241,135 @@ int main() {
 
           	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
-
+          	vector<double> next_x_vals; // global x value vector for next waypoint path
+          	vector<double> next_y_vals; // global y value vector for next waypoint path
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = next_x_vals;
+			int previous_path_length = previous_path_x.size(); // previous path size
+
+			// Set the endpath_s to car_s if there is a previous waypoint path and start KEEP LANE state
+			if (previous_path_length > 0) {
+				car_s = end_path_s;
+				vehicle_data.KeepLane();
+			}
+			else vehicle_data.KeepLane(); // otherwise hold the lane and follow any vehicle in front of us
+
+			// Update sensor fusion data
+			vehicle_data.Init(sensor_fusion, car_s, car_d, end_path_s, car_speed, previous_path_length);
+
+			// Search for a lane change when following a slow vehicle if requested
+			if (vehicle_data.plc) {
+				vehicle_data.PrepareLaneChange();
+			}
+
+			// Path trajectory planning
+			vector<double> ptsx;
+			vector<double> ptsy;
+
+			double ref_x = car_x;
+			double ref_y = car_y;
+			double ref_yaw = deg2rad(car_yaw);
+
+			// If the previous path is not available, engineer previous coordinates
+			if (previous_path_length < 2) {
+				// Create previous xy coordinates
+				double previous_x = car_x - cos(car_yaw);
+				double previous_y = car_y - sin(car_yaw);
+				ptsx.push_back(previous_x);
+				ptsy.push_back(previous_y);
+
+				// Add the cars current position
+				ptsx.push_back(car_x);
+				ptsy.push_back(car_y);
+			}
+			// If there was a previous waypoint path recycle the last two points to smooth point transitions
+			else {
+
+				ref_x = previous_path_x[previous_path_length -1];
+				ref_y = previous_path_y[previous_path_length -1];
+
+				double ref_x_previous = previous_path_x[previous_path_length - 2];
+				double ref_y_previous = previous_path_y[previous_path_length - 2];
+				ref_yaw = atan2(ref_y - ref_y_previous, ref_x - ref_x_previous);
+
+				ptsx.push_back(ref_x_previous);
+				ptsx.push_back(ref_x);
+				ptsy.push_back(ref_y_previous);
+				ptsy.push_back(ref_y);
+			}
+
+			// Desired freenet d value for lane
+			int ref_d = vehicle_data.LANE_CENTER + vehicle_data.LANE_WIDTH * vehicle_data.lane;
+
+			// Create some future points from the vehicles position
+			vector<double> spline_waypoint_0 = getXY(car_s + 30, ref_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			vector<double> spline_waypoint_1 = getXY(car_s + 60, ref_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			vector<double> spline_waypoint_2 = getXY(car_s + 90, ref_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+			ptsx.push_back(spline_waypoint_0[0]);
+			ptsx.push_back(spline_waypoint_1[0]);
+			ptsx.push_back(spline_waypoint_2[0]);
+
+			ptsy.push_back(spline_waypoint_0[1]);
+			ptsy.push_back(spline_waypoint_1[1]);
+			ptsy.push_back(spline_waypoint_2[1]);
+
+			// Shift car reference angle to 0
+			for (int i = 0; i < ptsx.size(); i++) {
+				double shift_x = ptsx[i] - ref_x;
+				double shift_y = ptsy[i] - ref_y;
+
+				ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
+				ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
+			}
+
+			//  Fit the spline to the spline point vector
+			tk::spline s;
+			s.set_points(ptsx, ptsy); // currently it is required that x is already sorted
+
+			// Start building the new path from the old to smooth transitions
+			for (int i = 0; i < previous_path_x.size(); i++) {
+				next_x_vals.push_back(previous_path_x[i]);
+				next_y_vals.push_back(previous_path_y[i]);
+			}
+
+			// Figure out how to break up the spline to drive at the desired speed
+			double target_x = 30.0;
+			double target_y = s(target_x);
+			double target_dist = sqrt((target_x) * (target_x) + (target_y) * (target_y));
+			double x_add_on = 0;
+
+			// Generate the remaining number of points needed for a full waypoint path
+			for(int i = 1; i <= vehicle_data.PATH_LENGTH - next_x_vals.size(); i++) {
+				double way_dist = (target_dist / (0.02 * vehicle_data.desired_vehicle_speed / 2.24)); // vehicle speed is converted to meters/s
+				double x_point = x_add_on + target_x / way_dist;
+				double y_point = s(x_point);
+
+				// Iterate the points for the next cycle
+				x_add_on = x_point;
+
+				double x_ref = x_point;
+				double y_ref = y_point;
+
+				// Rotate coordinates back to normal
+				x_point = (x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw));
+				y_point = (x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw));
+
+				x_point += ref_x;
+				y_point += ref_y;
+
+				next_x_vals.push_back(x_point);
+				next_y_vals.push_back(y_point);
+			}
+
+			msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 
           	//this_thread::sleep_for(chrono::milliseconds(1000));
           	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-          
+
         }
       } else {
         // Manual driving
