@@ -775,7 +775,7 @@ lapacke_mangling.h
 /mnt/c/Users/Fury/Documents/Udacity_Self_Driving_Course/term3/CarND-Path-Planning-Project/src/datavariables.cpp
 iostream
 -
-math.h
+cmath
 -
 map
 -

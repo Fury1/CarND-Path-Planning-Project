@@ -1,5 +1,5 @@
 #include <iostream>
-#include <math.h>
+#include <cmath>
 #include <map>
 #include "datavariables.h"
 
@@ -88,7 +88,7 @@ void DataVariables::KeepLane() {
             desired_vehicle_speed -= speed_delta / (followed_vehicle_speed + car_speed / 2) + s_delta * 0.0001;
         }
         else if (s_delta > FOLLOW_BUFFER) {
-            desired_vehicle_speed += abs(speed_delta / (followed_vehicle_speed + car_speed / 2)) + s_delta * 0.0001;
+            desired_vehicle_speed += std::abs(speed_delta / (followed_vehicle_speed + car_speed / 2)) + s_delta * 0.0001;
         }
         // If we are following a slow vehicle prepare for a lane change
         if (too_close && desired_vehicle_speed < speed_limit) {
